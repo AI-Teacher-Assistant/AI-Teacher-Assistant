@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson Planner — AI Teacher Assistant</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎓</div>
+      <span>AI Teacher</span>
+    </div>
+    <span class="sidebar-label">Generate</span>
+    <a href="quiz.html"       class="sidebar-link"><span class="icon">🧠</span> Quiz Generator</a>
+    <a href="lesson.html"     class="sidebar-link active"><span class="icon">📋</span> Lesson Planner</a>
+    <a href="assignment.html" class="sidebar-link"><span class="icon">📝</span> Assignment Maker</a>
+    <span class="sidebar-label">Account</span>
+    <a href="dashboard.html"  class="sidebar-link"><span class="icon">🏠</span> Dashboard</a>
+    <a href="#" class="sidebar-link" id="logoutLink"><span class="icon">🚪</span> Logout</a>
+    <div class="sidebar-spacer"></div>
+    <div class="trial-badge" id="trialBadge">
+      <div class="trial-title">Free Trial</div>
+      <div class="trial-progress"><div class="trial-progress-bar" id="trialBar" style="width:0%"></div></div>
+      <div class="trial-count" id="trialCount">0 / 5 generations used</div>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-title">📋 Lesson Planner</div>
+      <div class="topbar-right">
+        <span id="userName" style="font-size:0.9rem; color:var(--text-muted);"></span>
+        <div class="user-avatar" id="userAvatar">?</div>
+      </div>
+    </header>
+
+    <div class="page-content">
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-title">Plan your lesson</div>
+
+        <form class="generator-form" id="lessonForm" onsubmit="handleGenerate(event)">
+          <div class="form-group">
+            <label for="topic">Topic / Subject *</label>
+            <input id="topic" class="form-control" type="text"
+                   placeholder="e.g. The Water Cycle, The French Revolution, Algebra…" required />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="grade">Grade / Class</label>
+              <select id="grade" class="form-control">
+                <option value="Grade 1-3">Grade 1–3</option>
+                <option value="Grade 4-5">Grade 4–5</option>
+                <option value="Grade 6-8" selected>Grade 6–8</option>
+                <option value="Grade 9-10">Grade 9–10</option>
+                <option value="Grade 11-12">Grade 11–12</option>
+                <option value="Undergraduate">Undergraduate</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="duration">Lesson duration</label>
+              <select id="duration" class="form-control">
+                <option value="30 minutes">30 minutes</option>
+                <option value="45 minutes" selected>45 minutes</option>
+                <option value="60 minutes">60 minutes</option>
+                <option value="90 minutes">90 minutes</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="generateBtn">
+              📋 Generate Lesson Plan
+            </button>
+            <button type="reset" class="btn btn-ghost" onclick="clearResult()">Clear</button>
+          </div>
+        </form>
+      </div><!-- /.card -->
+
+      <!-- Result panel -->
+      <div class="result-panel" id="resultPanel" style="display:none;">
+        <div class="result-panel-header">
+          <h3 id="resultTitle">Lesson Plan</h3>
+          <div class="result-actions">
+            <button class="btn btn-outline btn-sm" onclick="printResult()">🖨️ Print</button>
+            <button class="btn btn-primary btn-sm" id="pdfBtn" onclick="exportPDF()">📄 Export PDF</button>
+          </div>
+        </div>
+        <div class="result-body" id="resultBody">
+          <div class="inline-loader"><div class="spinner-sm"></div> Generating…</div>
+        </div>
+      </div>
+
+    </div><!-- /.page-content -->
+  </div><!-- /.main-content -->
+</div><!-- /.app-layout -->
+
+<!-- Upgrade Modal -->
+<div class="modal-overlay" id="upgradeModal">
+  <div class="modal">
+    <div class="modal-icon">🔒</div>
+    <h2>Free Trial Exhausted</h2>
+    <p>You've used all 5 free generations. Upgrade to Pro for unlimited access.</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="trialModule.hideUpgradeModal()">Maybe Later</button>
+      <button class="btn btn-primary">Upgrade to Pro</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script type="module">
+  import { auth  } from './js/auth.js';
+  import { api   } from './js/api.js';
+  import { trial } from './js/free-trial.js';
+
+  auth.require();
+  window.trialModule = trial;
+
+  const user = auth.getUser();
+  if (user) {
+    document.getElementById('userName').textContent   = user.name;
+    document.getElementById('userAvatar').textContent = auth.getInitials();
+    trial.updateBadge(user.trialsUsed ?? 0, user.trialLimit ?? 5);
+  }
+  document.getElementById('logoutLink').addEventListener('click', e => { e.preventDefault(); auth.logout(); });
+
+  function toast(msg, type = 'info') {
+    const tc = document.getElementById('toastContainer');
+    const el = document.createElement('div');
+    const icons = { info:'ℹ️', success:'✅', error:'❌', warning:'⚠️' };
+    el.className = `toast ${type}`;
+    el.innerHTML = `<span>${icons[type]||'ℹ️'}</span> ${msg}`;
+    tc.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+
+  window.clearResult  = () => { document.getElementById('resultPanel').style.display = 'none'; };
+  window.printResult  = () => window.print();
+
+  window.exportPDF = async () => {
+    const body   = document.getElementById('resultBody');
+    const title  = document.getElementById('resultTitle').textContent;
+    const pdfBtn = document.getElementById('pdfBtn');
+    pdfBtn.disabled = true; pdfBtn.textContent = '⏳ Exporting…';
+    try {
+      const blob = await api.export.pdf(body.innerHTML, title);
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = `${title}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+      toast('PDF downloaded!', 'success');
+    } catch (err) {
+      toast(err.message || 'Export failed', 'error');
+    } finally {
+      pdfBtn.disabled = false; pdfBtn.textContent = '📄 Export PDF';
+    }
+  };
+
+  window.handleGenerate = async (e) => {
+    e.preventDefault();
+    const u = auth.getUser();
+    if (trial.isExhausted(u?.trialsUsed ?? 0, u?.trialLimit ?? 5)) { trial.showUpgradeModal(); return; }
+
+    const topic    = document.getElementById('topic').value.trim();
+    const grade    = document.getElementById('grade').value;
+    const duration = document.getElementById('duration').value;
+
+    const panel   = document.getElementById('resultPanel');
+    const body    = document.getElementById('resultBody');
+    const titleEl = document.getElementById('resultTitle');
+    const btn     = document.getElementById('generateBtn');
+
+    panel.style.display = 'block';
+    body.innerHTML = '<div class="inline-loader"><div class="spinner-sm"></div> Generating your lesson plan…</div>';
+    titleEl.textContent = 'Generating…';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Generating…';
+
+    try {
+      const res  = await api.generate.lesson(topic, grade, duration);
+      const data = res.data;
+
+      auth.updateUser({ ...u, trialsUsed: res.trialsUsed, trialLimit: res.trialLimit });
+      trial.updateBadge(res.trialsUsed, res.trialLimit);
+
+      titleEl.textContent = `Lesson Plan: ${data.topic}`;
+      body.innerHTML = renderLesson(data, grade, duration);
+      toast('Lesson plan generated!', 'success');
+
+      if (trial.isExhausted(res.trialsUsed, res.trialLimit)) trial.showUpgradeModal();
+    } catch (err) {
+      body.innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div><h3>Generation failed</h3><p>${err.message}</p></div>`;
+      toast(err.message || 'Generation failed', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📋 Generate Lesson Plan';
+    }
+  };
+
+  function renderLesson(d, grade, duration) {
+    const listItems = (arr) => Array.isArray(arr)
+      ? `<ul>${arr.map(i => `<li>${escHtml(i)}</li>`).join('')}</ul>`
+      : `<p>${escHtml(arr)}</p>`;
+
+    return `
+      <div style="display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
+        <span style="background:var(--primary-lt);color:var(--primary);padding:0.3rem 0.75rem;border-radius:99px;font-size:0.8rem;font-weight:600;">📚 ${escHtml(grade)}</span>
+        <span style="background:#ecfeff;color:var(--accent);padding:0.3rem 0.75rem;border-radius:99px;font-size:0.8rem;font-weight:600;">⏱ ${escHtml(duration)}</span>
+      </div>
+      <div class="lesson-section"><h4>🎯 Learning Objectives</h4>${listItems(d.objectives)}</div>
+      <div class="lesson-section"><h4>🚀 Introduction</h4><p>${escHtml(d.introduction)}</p></div>
+      <div class="lesson-section"><h4>📖 Main Content</h4><p>${escHtml(d.mainContent)}</p></div>
+      <div class="lesson-section"><h4>🎮 Activities</h4>${listItems(d.activities)}</div>
+      <div class="lesson-section"><h4>✅ Summary</h4><p>${escHtml(d.summary)}</p></div>
+      <div class="lesson-section"><h4>🏠 Homework</h4><p>${escHtml(d.homework)}</p></div>
+    `;
+  }
+
+  function escHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str ?? '';
+    return d.innerHTML;
+  }
+</script>
+
+</body>
+</html>
