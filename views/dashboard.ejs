@@ -1,0 +1,286 @@
+<%- include('partials/header') %>
+
+<div class="dashboard-container">
+  <!-- Trial Status Alert Banner -->
+  <div class="trial-banner-status <%= teacher.daysRemaining > 0 ? 'banner-active' : 'banner-expired' %>">
+    <div class="trial-banner-text">
+      <span class="status-icon"><%= teacher.daysRemaining > 0 ? '⏳' : '⚠️' %></span>
+      <div>
+        <strong>Two-Month Free Educator Trial:</strong>
+        <% if (teacher.daysRemaining > 0) { %>
+          <span>You have <strong><%= teacher.daysRemaining %> days</strong> remaining. All generation and PDF export features are fully enabled.</span>
+        <% } else { %>
+          <span>Your 2-month free trial has expired. You can view existing documents, but generation and export are locked.</span>
+        <% } %>
+      </div>
+    </div>
+    <div class="trial-banner-badge">
+      <%= teacher.daysRemaining > 0 ? 'Trial Active' : 'Trial Expired' %>
+    </div>
+  </div>
+
+  <div class="dashboard-grid">
+    <!-- LEFT PANEL: Generation Controls -->
+    <section class="generator-panel">
+      <div class="card">
+        <div class="card-header">
+          <h2>Create Curriculum Content</h2>
+          <p class="text-muted">Enter a subject and topic to generate classroom-ready materials.</p>
+        </div>
+
+        <div class="card-body">
+          <!-- Subject & Topic -->
+          <div class="form-group">
+            <label for="subjectInput">Subject <span class="required">*</span></label>
+            <input type="text" id="subjectInput" class="form-control" placeholder="e.g. Computer Science, Physics, World History" required>
+            <div class="quick-chips">
+              <span class="chip-label">Suggestions:</span>
+              <button type="button" class="chip" onclick="setSubjectTopic('Computer Science', 'Binary Search Trees')">Binary Search Trees</button>
+              <button type="button" class="chip" onclick="setSubjectTopic('Physics', 'Newton\'s Laws of Motion')">Newton's Laws</button>
+              <button type="button" class="chip" onclick="setSubjectTopic('Biology', 'Cellular Respiration')">Cellular Respiration</button>
+              <button type="button" class="chip" onclick="setSubjectTopic('Mathematics', 'Quadratic Equations')">Quadratic Equations</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="topicInput">Topic / Lesson Unit <span class="required">*</span></label>
+            <input type="text" id="topicInput" class="form-control" placeholder="e.g. Binary Search Trees, Photosynthesis" required>
+          </div>
+
+          <!-- Type Selector Tabs -->
+          <div class="form-group">
+            <label>Material Type</label>
+            <div class="tab-buttons">
+              <button type="button" class="tab-btn active" id="tabNotes" onclick="switchGenerationType('notes')">
+                <span class="tab-icon">📝</span> Notes
+              </button>
+              <button type="button" class="tab-btn" id="tabAssignment" onclick="switchGenerationType('assignment')">
+                <span class="tab-icon">📋</span> Assignment
+              </button>
+              <button type="button" class="tab-btn" id="tabQuestions" onclick="switchGenerationType('questions')">
+                <span class="tab-icon">❓</span> Questions
+              </button>
+            </div>
+          </div>
+
+          <!-- DYNAMIC SUB-CONTROLS -->
+
+          <!-- 1. Notes Options -->
+          <div id="notesOptions" class="type-options-container">
+            <div class="form-group">
+              <label for="gradeLevel">Target Student Level</label>
+              <select id="gradeLevel" class="form-control">
+                <option value="Middle School">Middle School (Grades 6-8)</option>
+                <option value="High School" selected>High School (Grades 9-12)</option>
+                <option value="Undergraduate">College / Undergraduate</option>
+                <option value="Advanced Placement">Advanced Placement (AP)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="notesInstructions">Teacher Instructions (Optional)</label>
+              <input type="text" id="notesInstructions" class="form-control" placeholder="e.g. Focus on practical real-world applications">
+            </div>
+          </div>
+
+          <!-- 2. Assignment Options -->
+          <div id="assignmentOptions" class="type-options-container" style="display: none;">
+            <div class="form-group">
+              <label>Assignment Difficulty</label>
+              <div class="difficulty-picker">
+                <label class="radio-label">
+                  <input type="radio" name="assignmentDifficulty" value="easy">
+                  <span class="diff-badge diff-easy">Easy</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="assignmentDifficulty" value="medium" checked>
+                  <span class="diff-badge diff-medium">Medium</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="assignmentDifficulty" value="hard">
+                  <span class="diff-badge diff-hard">Hard</span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="assignmentInstructions">Custom Focus / Guidelines (Optional)</label>
+              <input type="text" id="assignmentInstructions" class="form-control" placeholder="e.g. Include research questions & 50 points total">
+            </div>
+          </div>
+
+          <!-- 3. Question Bank Options -->
+          <div id="questionsOptions" class="type-options-container" style="display: none;">
+            <div class="form-group">
+              <label>Difficulty Tier <span class="required">*</span></label>
+              <div class="difficulty-picker">
+                <label class="radio-label">
+                  <input type="radio" name="questionDifficulty" value="easy">
+                  <span class="diff-badge diff-easy">Easy</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="questionDifficulty" value="medium" checked>
+                  <span class="diff-badge diff-medium">Medium</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="questionDifficulty" value="hard">
+                  <span class="diff-badge diff-hard">Hard</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="questionCount">Count</label>
+                <select id="questionCount" class="form-control">
+                  <option value="3">3 Questions</option>
+                  <option value="5" selected>5 Questions</option>
+                  <option value="10">10 Questions</option>
+                  <option value="15">15 Questions</option>
+                </select>
+              </div>
+
+              <div class="form-group flex-1">
+                <label for="questionType">Question Format</label>
+                <select id="questionType" class="form-control">
+                  <option value="mixed" selected>Mixed (MCQ + Short)</option>
+                  <option value="multiple_choice">Multiple Choice Only</option>
+                  <option value="short_answer">Short Answer / Essay</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Generate Action Button -->
+          <button type="button" id="generateBtn" class="btn btn-primary btn-block btn-lg" onclick="triggerAIGeneration()">
+            <span class="btn-icon">⚡</span>
+            <span class="btn-text">Generate with AI</span>
+            <span class="btn-spinner" style="display: none;"></span>
+          </button>
+
+          <div id="generationStatusMsg" class="generation-status-text" style="display: none;">
+            <span>🤖 AI is analyzing subject and preparing your educational content...</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: Live Document Workspace (Preview & Editor) -->
+    <section class="workspace-panel">
+      <div class="card workspace-card">
+        <div class="workspace-header">
+          <div class="workspace-title-box">
+            <input type="text" id="docTitleInput" class="doc-title-input" placeholder="Document Title (e.g. Lecture Notes: Binary Search Trees)">
+            <div class="doc-meta-tags">
+              <span id="docTypeTag" class="badge badge-primary">Notes</span>
+              <span id="docDifficultyTag" class="badge badge-subtle">Medium</span>
+              <span id="docSaveStateTag" class="badge badge-neutral">Ready</span>
+            </div>
+          </div>
+
+          <div class="workspace-actions">
+            <!-- Mode Toggle: Preview vs Raw Edit -->
+            <div class="view-toggle-group">
+              <button type="button" id="btnPreviewMode" class="btn btn-toggle active" onclick="setViewMode('preview')">👁️ Preview</button>
+              <button type="button" id="btnEditMode" class="btn btn-toggle" onclick="setViewMode('edit')">✏️ Edit</button>
+            </div>
+
+            <!-- Action Buttons -->
+            <button type="button" id="saveDocBtn" class="btn btn-success" onclick="saveCurrentDocument()" title="Save to your document library">
+              💾 Save
+            </button>
+            <button type="button" id="pdfExportBtn" class="btn btn-secondary" onclick="exportCurrentPDF()" title="Download as formatted PDF">
+              📄 Download PDF
+            </button>
+            <button type="button" class="btn btn-outline-sm" onclick="copyDocumentContent()" title="Copy text to clipboard">
+              📋 Copy
+            </button>
+            <button type="button" class="btn btn-outline-sm text-danger" onclick="clearWorkspace()" title="Clear workspace">
+              🗑️ Clear
+            </button>
+          </div>
+        </div>
+
+        <div class="workspace-body">
+          <!-- Live Preview Pane -->
+          <div id="previewPane" class="preview-pane">
+            <div id="previewContent" class="preview-markdown">
+              <div class="empty-workspace">
+                <div class="empty-icon">💡</div>
+                <h3>Your workspace is ready</h3>
+                <p>Select a subject and topic on the left, then click <strong>"Generate with AI"</strong> to create lecture notes, assignments, or questions.</p>
+                <div class="workspace-hint">
+                  <span>💡 Tip: Once generated, you can directly edit any text before saving or downloading as a PDF.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Raw Editor Pane (Textarea) -->
+          <div id="editorPane" class="editor-pane" style="display: none;">
+            <textarea id="rawEditor" class="raw-textarea" placeholder="Generated markdown content appears here. You can freely edit, format, or type your own lesson plan." oninput="handleEditorInput()"></textarea>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- BOTTOM SECTION: Saved Documents History & Library -->
+  <section class="history-section">
+    <div class="card">
+      <div class="history-header">
+        <div>
+          <h2>Your Saved Teaching Materials</h2>
+          <p class="text-muted">Access, edit, or re-export previously created documents.</p>
+        </div>
+        <div class="history-controls">
+          <input type="text" id="searchDocsInput" class="form-control form-control-sm" placeholder="Search by title or topic..." oninput="filterDocuments()">
+          <div class="filter-pills">
+            <button type="button" class="filter-pill active" onclick="filterDocsByType('all', this)">All</button>
+            <button type="button" class="filter-pill" onclick="filterDocsByType('notes', this)">Notes</button>
+            <button type="button" class="filter-pill" onclick="filterDocsByType('assignment', this)">Assignments</button>
+            <button type="button" class="filter-pill" onclick="filterDocsByType('questions', this)">Questions</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="history-body">
+        <div id="documentsList" class="documents-grid">
+          <% if (documents && documents.length > 0) { %>
+            <% documents.forEach(doc => { %>
+              <div class="document-item-card" data-id="<%= doc._id || doc.id %>" data-type="<%= doc.type %>" data-title="<%= doc.title %>" data-subject="<%= doc.subject %>">
+                <div class="doc-card-top">
+                  <span class="doc-badge badge-<%= doc.type %>"><%= doc.type.toUpperCase() %></span>
+                  <span class="doc-difficulty badge-subtle"><%= doc.difficulty || 'standard' %></span>
+                </div>
+                <h3 class="doc-card-title"><%= doc.title %></h3>
+                <p class="doc-card-details"><strong><%= doc.subject %></strong> &bull; <%= doc.topic %></p>
+                <p class="doc-card-date">Saved on <%= new Date(doc.updatedAt || doc.createdAt).toLocaleDateString() %></p>
+
+                <div class="doc-card-actions">
+                  <button type="button" class="btn btn-outline-sm btn-block" onclick="loadSavedDocument('<%= doc._id || doc.id %>')">
+                    👁️ Load in Workspace
+                  </button>
+                  <div class="doc-card-btn-row">
+                    <a href="/api/documents/<%= doc._id || doc.id %>/pdf" class="btn btn-secondary-sm flex-1" target="_blank" download>
+                      📄 PDF
+                    </a>
+                    <button type="button" class="btn btn-outline-sm text-danger" onclick="deleteSavedDocument('<%= doc._id || doc.id %>')">
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              </div>
+            <% }); %>
+          <% } else { %>
+            <div id="noDocsNotice" class="no-docs-box">
+              <div class="no-docs-icon">📂</div>
+              <h4>No documents saved yet</h4>
+              <p>Generated materials you save will appear here in your teacher library.</p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<%- include('partials/footer') %>

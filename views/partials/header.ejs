@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title : 'AI Teacher Assistant' %></title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-container">
+      <a href="/" class="brand">
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            <path d="M12 6v6"></path>
+            <path d="M9 9h6"></path>
+          </svg>
+        </div>
+        <span class="brand-name">AI Teacher Assistant</span>
+      </a>
+
+      <nav class="nav-menu">
+        <% if (typeof currentTeacher !== 'undefined' && currentTeacher) { %>
+          <div class="trial-pill <%= currentTeacher.daysRemaining > 0 ? 'trial-active' : 'trial-expired' %>">
+            <span class="trial-dot"></span>
+            <% if (currentTeacher.daysRemaining > 0) { %>
+              <span>Trial: <strong><%= currentTeacher.daysRemaining %> days</strong> left</span>
+            <% } else { %>
+              <span>Trial: <strong>Expired</strong></span>
+            <% } %>
+          </div>
+
+          <div class="user-profile">
+            <span class="user-greeting">Welcome, <strong><%= currentTeacher.name %></strong></span>
+            <button id="logoutBtn" class="btn btn-outline-sm" onclick="logoutUser()">Log Out</button>
+          </div>
+        <% } else { %>
+          <a href="/login" class="nav-link">Log In</a>
+          <a href="/register" class="btn btn-primary-sm">Start 2-Month Free Trial</a>
+        <% } %>
+      </nav>
+    </div>
+  </header>
+  <main class="main-content">

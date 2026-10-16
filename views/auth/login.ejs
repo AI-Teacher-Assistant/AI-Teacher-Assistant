@@ -1,0 +1,43 @@
+<%- include('../partials/header') %>
+
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-badge">Teacher Portal</div>
+      <h2>Welcome Back, Educator</h2>
+      <p>Log in to access your dashboard, saved materials, and AI generation tools.</p>
+    </div>
+
+    <div id="loginAlert" class="alert alert-error" style="display: none;"></div>
+
+    <form id="loginForm" class="auth-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label for="email">Teacher Email Address</label>
+        <input type="email" id="email" name="email" class="form-control" placeholder="e.g. sarah.connor@school.edu" required autofocus>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" class="form-control" placeholder="Enter your account password" required minlength="6">
+      </div>
+
+      <button type="submit" id="loginSubmitBtn" class="btn btn-primary btn-block">
+        <span class="btn-text">Sign In to Dashboard</span>
+        <span class="btn-spinner" style="display: none;"></span>
+      </button>
+
+      <div class="auth-demo-hint">
+        <p>Testing or judging the hackathon?</p>
+        <button type="button" class="btn btn-subtle-sm" onclick="quickFillDemoLogin()">
+          ⚡ Quick Demo Login
+        </button>
+      </div>
+    </form>
+
+    <div class="auth-footer">
+      <p>Don't have an educator account yet? <a href="/register">Start 2-Month Free Trial</a></p>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

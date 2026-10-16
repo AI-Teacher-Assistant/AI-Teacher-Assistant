@@ -1,0 +1,37 @@
+{
+  "name": "ai-teacher-assistant",
+  "version": "1.0.0",
+  "description": "AI Teacher Assistant - Empowering educators with AI-generated notes, assignments, and questions",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "node tests/integration.test.js"
+  },
+  "keywords": [
+    "ai",
+    "teacher-assistant",
+    "education",
+    "gemini",
+    "express",
+    "nodejs",
+    "ejs"
+  ],
+  "author": "AI Teacher Assistant Team",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.0",
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.12.1",
+    "pdfkit": "^0.16.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
