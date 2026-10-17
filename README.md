@@ -170,6 +170,12 @@ The test suite validates 31 automated assertions across the entire backend:
 - [x] System health monitoring endpoint (`GET /api/health`).
 - [x] Real-time usage tracking (`notesGenerated`, `assignmentsGenerated`, `questionsGenerated`, `totalAIGenerations`, `pdfExports`).
 - [x] Strict cross-teacher usage isolation (Teacher 2 counters remain at zero).
+- [x] Frontend profile endpoint (`GET /api/auth/me`).
+- [x] Frontend MCQ Quiz generation (`POST /api/generate/quiz`).
+- [x] Frontend Lesson Plan generation (`POST /api/generate/lesson`).
+- [x] Frontend Assignment generation (`POST /api/generate/assignment`).
+- [x] Frontend direct PDF export (`POST /api/export/pdf`).
+- [x] Frontend interactive generator pages (`/quiz`, `/lesson`, `/assignment`).
 - [x] Secure logout and auth cookie clearance.
 
 ---
@@ -193,8 +199,13 @@ Refer to [`API_CONTRACT.md`](./API_CONTRACT.md) for full request/response schema
 | `POST` | `/api/auth/register` | Register new teacher with 60-day trial | No |
 | `POST` | `/api/auth/login` | Authenticate teacher & set cookie/token | No |
 | `POST` | `/api/auth/logout` | Clear session & cookie | No |
+| `GET` | `/api/auth/me` | Current teacher profile in frontend schema | Yes |
 | `GET` | `/api/teachers/me` | Current teacher profile with usage metrics | Yes |
 | `GET` | `/api/subscription/status`| Check 2-month trial status & usage metrics | Yes |
+| `POST` | `/api/generate/quiz` | Generate MCQ questions for Quiz Maker | Yes + Active Trial |
+| `POST` | `/api/generate/lesson` | Generate complete structured Lesson Plan | Yes + Active Trial |
+| `POST` | `/api/generate/assignment` | Generate customized Assignment worksheet | Yes + Active Trial |
+| `POST` | `/api/export/pdf` | Export HTML/Text directly as binary PDF | Yes + Active Trial |
 | `POST` | `/api/ai/notes` | Generate lecture notes (increments usage) | Yes + Active Trial |
 | `POST` | `/api/ai/assignments` | Generate assignment & rubrics (increments usage) | Yes + Active Trial |
 | `POST` | `/api/ai/questions` | Generate Easy, Medium, or Hard questions (increments usage) | Yes + Active Trial |
@@ -204,6 +215,7 @@ Refer to [`API_CONTRACT.md`](./API_CONTRACT.md) for full request/response schema
 | `PATCH`| `/api/documents/:id` | Update document title/content | Yes |
 | `DELETE`| `/api/documents/:id`| Delete document | Yes |
 | `GET` | `/api/documents/:id/pdf`| Export document as PDF (increments usage) | Yes + Active Trial |
+
 
 ---
 

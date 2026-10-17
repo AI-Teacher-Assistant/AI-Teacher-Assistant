@@ -541,6 +541,124 @@ async function start() {
     assert.strictEqual(usage.pdfExports, 0);
   });
 
+  // Frontend Compatibility: GET /api/auth/me
+  await runTest('GET /api/auth/me returns teacher profile in Member 1 user schema', async () => {
+    const res = await fetch(`${BASE_URL}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${teacher1Token}` }
+    });
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.strictEqual(data.success, true);
+    assert.ok(data.user);
+    assert.strictEqual(data.user.name, 'Prof. Ada Lovelace');
+    assert.ok(data.user.email);
+    assert.strictEqual(data.user.trialLimit, 5);
+    assert.ok(typeof data.user.trialsUsed === 'number');
+  });
+
+  // Frontend Compatibility: POST /api/generate/quiz
+  await runTest('POST /api/generate/quiz generates structured MCQ questions for quiz.html', async () => {
+    const res = await fetch(`${BASE_URL}/api/generate/quiz`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${teacher1Token}`
+      },
+      body: JSON.stringify({
+        topic: 'Photosynthesis',
+        numQuestions: 3,
+        difficulty: 'medium',
+        grade: 'Grade 6-8'
+      })
+    });
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.strictEqual(data.success, true);
+    assert.strictEqual(data.data.topic, 'Photosynthesis');
+    assert.strictEqual(data.data.questions.length, 3);
+    assert.ok(data.data.questions[0].question);
+    assert.ok(Array.isArray(data.data.questions[0].options));
+    assert.ok(data.data.questions[0].answer);
+  });
+
+  // Frontend Compatibility: POST /api/generate/lesson
+  await runTest('POST /api/generate/lesson generates structured lesson plan for lesson.html', async () => {
+    const res = await fetch(`${BASE_URL}/api/generate/lesson`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${teacher1Token}`
+      },
+      body: JSON.stringify({
+        topic: 'Newton Laws',
+        grade: 'Grade 9-10',
+        duration: '45 minutes'
+      })
+    });
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.strictEqual(data.success, true);
+    assert.ok(data.data.objectives.length > 0);
+    assert.ok(data.data.introduction);
+    assert.ok(data.data.mainContent);
+    assert.ok(data.data.activities.length > 0);
+    assert.ok(data.data.summary);
+    assert.ok(data.data.homework);
+  });
+
+  // Frontend Compatibility: POST /api/generate/assignment
+  await runTest('POST /api/generate/assignment generates worksheet questions for assignment.html', async () => {
+    const res = await fetch(`${BASE_URL}/api/generate/assignment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${teacher1Token}`
+      },
+      body: JSON.stringify({
+        topic: 'Fractions',
+        grade: 'Grade 4-5',
+        numQuestions: 4,
+        type: 'mixed'
+      })
+    });
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.strictEqual(data.success, true);
+    assert.strictEqual(data.data.questions.length, 4);
+    assert.ok(data.data.questions[0].question);
+    assert.ok(data.data.questions[0].marks > 0);
+  });
+
+  // Frontend Compatibility: POST /api/export/pdf
+  await runTest('POST /api/export/pdf converts HTML content to downloadable PDF', async () => {
+    const res = await fetch(`${BASE_URL}/api/export/pdf`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${teacher1Token}`
+      },
+      body: JSON.stringify({
+        htmlContent: '<h4>Photosynthesis Quiz</h4><p>Q1. What is the main pigment?</p><div>Answer: Chlorophyll</div>',
+        filename: 'Photosynthesis_Quiz'
+      })
+    });
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.headers.get('content-type'), 'application/pdf');
+    const buffer = await res.arrayBuffer();
+    assert.ok(buffer.byteLength > 500);
+    const headerBytes = new Uint8Array(buffer.slice(0, 5));
+    const headerStr = String.fromCharCode(...headerBytes);
+    assert.strictEqual(headerStr, '%PDF-');
+  });
+
+  // Frontend Route: GET /quiz serves static quiz.html
+  await runTest('GET /quiz serves the frontend quiz.html generator page', async () => {
+    const res = await fetch(`${BASE_URL}/quiz`);
+    assert.strictEqual(res.status, 200);
+    const text = await res.text();
+    assert.ok(text.includes('Configure your quiz'));
+  });
+
   // Logout
   await runTest('POST /api/auth/logout clears auth cookie', async () => {
     const res = await fetch(`${BASE_URL}/api/auth/logout`, { method: 'POST' });

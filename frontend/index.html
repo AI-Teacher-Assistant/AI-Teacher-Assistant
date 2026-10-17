@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Teacher Assistant — Sign In</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<div class="auth-wrapper">
+
+  <!-- Hero panel -->
+  <div class="auth-hero">
+    <div>
+      <div style="font-size:3rem; margin-bottom:0.75rem;">🎓</div>
+      <h1>AI Teacher Assistant</h1>
+      <p>Create quizzes, lesson plans, and assignments in seconds — powered by AI.</p>
+    </div>
+    <div class="features">
+      <div class="feature-item"><span class="icon">🧠</span> AI-generated quiz questions</div>
+      <div class="feature-item"><span class="icon">📋</span> Ready-to-use lesson plans</div>
+      <div class="feature-item"><span class="icon">📝</span> Custom assignments &amp; worksheets</div>
+      <div class="feature-item"><span class="icon">📄</span> One-click PDF export</div>
+    </div>
+  </div>
+
+  <!-- Form panel -->
+  <div class="auth-form-panel">
+    <div class="auth-card">
+
+      <!-- Logo -->
+      <div class="auth-logo">
+        <div class="logo-icon">🎓</div>
+        <span>AI Teacher Assistant</span>
+      </div>
+
+      <!-- Tabs -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="loginTab"  onclick="showTab('login')">Sign In</button>
+        <button class="auth-tab"        id="signupTab" onclick="showTab('signup')">Sign Up</button>
+      </div>
+
+      <!-- Global error banner -->
+      <div id="authError" class="form-error" style="display:none; background:#fef2f2; padding:0.75rem 1rem; border-radius:8px;"></div>
+
+      <!-- ===== LOGIN FORM ===== -->
+      <form id="loginForm" class="generator-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="loginEmail">Email address</label>
+          <input id="loginEmail" type="email" class="form-control" placeholder="you@school.edu" required />
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input id="loginPassword" type="password" class="form-control" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="loginBtn">
+          Sign In
+        </button>
+        <p style="text-align:center; font-size:0.85rem;">
+          Don't have an account?
+          <a href="#" onclick="showTab('signup')" style="color:var(--primary); font-weight:600;">Sign up free</a>
+        </p>
+      </form>
+
+      <!-- ===== SIGNUP FORM ===== -->
+      <form id="signupForm" class="generator-form" style="display:none;" onsubmit="handleSignup(event)">
+        <div class="form-group">
+          <label for="signupName">Full name</label>
+          <input id="signupName" type="text" class="form-control" placeholder="Jane Smith" required />
+        </div>
+        <div class="form-group">
+          <label for="signupEmail">Email address</label>
+          <input id="signupEmail" type="email" class="form-control" placeholder="you@school.edu" required />
+        </div>
+        <div class="form-group">
+          <label for="signupPassword">Password</label>
+          <input id="signupPassword" type="password" class="form-control" placeholder="Min. 6 characters" minlength="6" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="signupBtn">
+          Create free account
+        </button>
+        <p style="text-align:center; font-size:0.85rem;">
+          Already have an account?
+          <a href="#" onclick="showTab('login')" style="color:var(--primary); font-weight:600;">Sign in</a>
+        </p>
+      </form>
+
+    </div><!-- /.auth-card -->
+  </div><!-- /.auth-form-panel -->
+</div><!-- /.auth-wrapper -->
+
+<script type="module">
+  import { api  } from './js/api.js';
+  import { auth } from './js/auth.js';
+
+  // Redirect if already logged in
+  if (auth.isLoggedIn()) window.location.href = 'dashboard.html';
+
+  /* ----- Tab switcher ----- */
+  window.showTab = (tab) => {
+    const isLogin = tab === 'login';
+    document.getElementById('loginForm').style.display  = isLogin ? 'flex'  : 'none';
+    document.getElementById('signupForm').style.display = isLogin ? 'none'  : 'flex';
+    document.getElementById('loginTab').classList.toggle('active',  isLogin);
+    document.getElementById('signupTab').classList.toggle('active', !isLogin);
+    document.getElementById('authError').style.display = 'none';
+  };
+
+  /* ----- Helpers ----- */
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    btn.disabled = loading;
+    btn.innerHTML = loading
+      ? '<span class="spinner"></span> Please wait…'
+      : (btnId === 'loginBtn' ? 'Sign In' : 'Create free account');
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('authError');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  /* ----- Login ----- */
+  window.handleLogin = async (e) => {
+    e.preventDefault();
+    document.getElementById('authError').style.display = 'none';
+    const email    = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    setLoading('loginBtn', true);
+    try {
+      const res = await api.auth.login(email, password);
+      auth.save(res.token, res.user);
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      showError(err.message || 'Login failed. Please try again.');
+      setLoading('loginBtn', false);
+    }
+  };
+
+  /* ----- Signup ----- */
+  window.handleSignup = async (e) => {
+    e.preventDefault();
+    document.getElementById('authError').style.display = 'none';
+    const name     = document.getElementById('signupName').value.trim();
+    const email    = document.getElementById('signupEmail').value.trim();
+    const password = document.getElementById('signupPassword').value;
+    setLoading('signupBtn', true);
+    try {
+      const res = await api.auth.register(name, email, password);
+      auth.save(res.token, res.user);
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      showError(err.message || 'Registration failed. Please try again.');
+      setLoading('signupBtn', false);
+    }
+  };
+</script>
+
+</body>
+</html>

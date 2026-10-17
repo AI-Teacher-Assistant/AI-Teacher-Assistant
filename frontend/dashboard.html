@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — AI Teacher Assistant</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎓</div>
+      <span>AI Teacher</span>
+    </div>
+
+    <span class="sidebar-label">Generate</span>
+    <a href="quiz.html"       class="sidebar-link"><span class="icon">🧠</span> Quiz Generator</a>
+    <a href="lesson.html"     class="sidebar-link"><span class="icon">📋</span> Lesson Planner</a>
+    <a href="assignment.html" class="sidebar-link"><span class="icon">📝</span> Assignment Maker</a>
+
+    <span class="sidebar-label">Account</span>
+    <a href="dashboard.html" class="sidebar-link active"><span class="icon">🏠</span> Dashboard</a>
+    <a href="#" class="sidebar-link" id="logoutLink"><span class="icon">🚪</span> Logout</a>
+
+    <div class="sidebar-spacer"></div>
+
+    <!-- Trial badge -->
+    <div class="trial-badge" id="trialBadge">
+      <div class="trial-title">Free Trial</div>
+      <div class="trial-progress">
+        <div class="trial-progress-bar" id="trialBar" style="width:0%"></div>
+      </div>
+      <div class="trial-count" id="trialCount">0 / 5 generations used</div>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main-content">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-title">Dashboard</div>
+      <div class="topbar-right">
+        <span id="userName" style="font-size:0.9rem; color:var(--text-muted);"></span>
+        <div class="user-avatar" id="userAvatar">?</div>
+      </div>
+    </header>
+
+    <!-- Page body -->
+    <div class="page-content">
+
+      <!-- Welcome -->
+      <div style="margin-bottom:2rem;">
+        <h2 id="welcomeMsg">Welcome back!</h2>
+        <p>What would you like to create today?</p>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon purple">🧠</div>
+          <div>
+            <div class="stat-value" id="statQuiz">—</div>
+            <div class="stat-label">Quizzes Generated</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon cyan">📋</div>
+          <div>
+            <div class="stat-value" id="statLesson">—</div>
+            <div class="stat-label">Lesson Plans</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">📝</div>
+          <div>
+            <div class="stat-value" id="statAssign">—</div>
+            <div class="stat-label">Assignments</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
+      <h3 style="margin-bottom:1rem;">Quick Actions</h3>
+      <div class="actions-grid">
+        <div class="action-card" onclick="location.href='quiz.html'">
+          <div class="action-icon">🧠</div>
+          <h3>Quiz Generator</h3>
+          <p>Generate MCQ questions on any topic for your class.</p>
+          <button class="btn btn-primary btn-sm">Generate Quiz →</button>
+        </div>
+        <div class="action-card" onclick="location.href='lesson.html'">
+          <div class="action-icon">📋</div>
+          <h3>Lesson Planner</h3>
+          <p>Create a complete lesson plan with objectives and activities.</p>
+          <button class="btn btn-primary btn-sm">Plan Lesson →</button>
+        </div>
+        <div class="action-card" onclick="location.href='assignment.html'">
+          <div class="action-icon">📝</div>
+          <h3>Assignment Maker</h3>
+          <p>Build customised worksheets and homework assignments.</p>
+          <button class="btn btn-primary btn-sm">Make Assignment →</button>
+        </div>
+      </div>
+
+    </div><!-- /.page-content -->
+  </div><!-- /.main-content -->
+</div><!-- /.app-layout -->
+
+<!-- Upgrade Modal -->
+<div class="modal-overlay" id="upgradeModal">
+  <div class="modal">
+    <div class="modal-icon">🔒</div>
+    <h2>Free Trial Exhausted</h2>
+    <p>You've used all 5 free generations. Upgrade to Pro for unlimited access.</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="trial.hideUpgradeModal()">Maybe Later</button>
+      <button class="btn btn-primary">Upgrade to Pro</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { auth  } from './js/auth.js';
+  import { api   } from './js/api.js';
+  import { trial } from './js/free-trial.js';
+
+  auth.require();
+
+  // Set user info from cache immediately for fast render
+  const user = auth.getUser();
+  if (user) {
+    document.getElementById('welcomeMsg').textContent = `Welcome back, ${user.name}!`;
+    document.getElementById('userName').textContent    = user.name;
+    document.getElementById('userAvatar').textContent  = auth.getInitials();
+    trial.updateBadge(user.trialsUsed ?? 0, user.trialLimit ?? 5);
+  }
+
+  // Fetch fresh user data from backend
+  try {
+    const res  = await api.auth.me();
+    const u    = res.user;
+    auth.updateUser(u);
+    document.getElementById('welcomeMsg').textContent = `Welcome back, ${u.name}!`;
+    document.getElementById('userName').textContent   = u.name;
+    document.getElementById('userAvatar').textContent = auth.getInitials();
+    trial.updateBadge(u.trialsUsed ?? 0, u.trialLimit ?? 5);
+
+    // Populate stats (counts derived from trialsUsed placeholder until history API added)
+    document.getElementById('statQuiz').textContent   = u.quizCount   ?? '—';
+    document.getElementById('statLesson').textContent = u.lessonCount ?? '—';
+    document.getElementById('statAssign').textContent = u.assignCount ?? '—';
+  } catch {
+    // Token expired or backend down — stay on cached data
+  }
+
+  // Logout
+  document.getElementById('logoutLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    auth.logout();
+  });
+
+  // Make trial globally accessible for modal buttons
+  window.trial = trial;
+</script>
+
+</body>
+</html>

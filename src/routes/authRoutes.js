@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { TeacherRepository } = require('../models/Teacher');
-const { generateToken } = require('../middleware/auth');
+const { generateToken, authenticateApi } = require('../middleware/auth');
 
 /**
  * @route   POST /api/auth/register
@@ -48,10 +48,21 @@ router.post('/register', async (req, res) => {
     });
 
     const teacherId = teacher._id ? teacher._id.toString() : teacher.id;
+    const userPayload = {
+      id: teacherId,
+      name: teacher.name,
+      email: teacher.email,
+      trialsUsed: (teacher.usage && teacher.usage.totalAIGenerations) || 0,
+      trialLimit: 5,
+      quizCount: (teacher.usage && teacher.usage.questionsGenerated) || 0,
+      lessonCount: (teacher.usage && teacher.usage.notesGenerated) || 0,
+      assignCount: (teacher.usage && teacher.usage.assignmentsGenerated) || 0
+    };
     return res.status(201).json({
       success: true,
       message: 'Registration successful! Your 2-month free trial has started.',
       token,
+      user: userPayload,
       teacher: {
         id: teacherId,
         name: teacher.name,
@@ -113,10 +124,21 @@ router.post('/login', async (req, res) => {
     });
 
     const teacherId = teacher._id ? teacher._id.toString() : teacher.id;
+    const userPayload = {
+      id: teacherId,
+      name: teacher.name,
+      email: teacher.email,
+      trialsUsed: (teacher.usage && teacher.usage.totalAIGenerations) || 0,
+      trialLimit: 5,
+      quizCount: (teacher.usage && teacher.usage.questionsGenerated) || 0,
+      lessonCount: (teacher.usage && teacher.usage.notesGenerated) || 0,
+      assignCount: (teacher.usage && teacher.usage.assignmentsGenerated) || 0
+    };
     return res.status(200).json({
       success: true,
       message: 'Login successful.',
       token,
+      user: userPayload,
       teacher: {
         id: teacherId,
         name: teacher.name,
@@ -134,6 +156,29 @@ router.post('/login', async (req, res) => {
       message: 'Server error during login. Please try again.'
     });
   }
+});
+
+/**
+ * @route   GET /api/auth/me
+ * @desc    Get currently logged in teacher for frontend dashboard
+ */
+router.get('/me', authenticateApi, (req, res) => {
+  const teacher = req.teacher;
+  const teacherId = teacher._id ? teacher._id.toString() : teacher.id;
+  const trialsUsed = (teacher.usage && teacher.usage.totalAIGenerations) || 0;
+  return res.status(200).json({
+    success: true,
+    user: {
+      id: teacherId,
+      name: teacher.name,
+      email: teacher.email,
+      trialsUsed,
+      trialLimit: 5,
+      quizCount: (teacher.usage && teacher.usage.questionsGenerated) || 0,
+      lessonCount: (teacher.usage && teacher.usage.notesGenerated) || 0,
+      assignCount: (teacher.usage && teacher.usage.assignmentsGenerated) || 0
+    }
+  });
 });
 
 /**
