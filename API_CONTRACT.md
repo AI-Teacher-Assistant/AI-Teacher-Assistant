@@ -102,7 +102,14 @@ This document defines the confirmed API contract for the AI Teacher Assistant ha
       "trialStartDate": "2026-10-16T00:00:00.000Z",
       "trialEndDate": "2026-12-16T00:00:00.000Z",
       "isTrialActive": true,
-      "daysRemaining": 61
+      "daysRemaining": 61,
+      "usage": {
+        "notesGenerated": 1,
+        "assignmentsGenerated": 1,
+        "questionsGenerated": 3,
+        "totalAIGenerations": 5,
+        "pdfExports": 2
+      }
     }
   }
   ```
@@ -117,11 +124,34 @@ This document defines the confirmed API contract for the AI Teacher Assistant ha
     "success": true,
     "trial": {
       "isActive": true,
+      "isValid": true,
       "startDate": "2026-10-16T00:00:00.000Z",
       "endDate": "2026-12-16T00:00:00.000Z",
       "daysRemaining": 61,
-      "isExpired": false
+      "isExpired": false,
+      "planName": "2-Month Free Educator Trial"
+    },
+    "usage": {
+      "notesGenerated": 1,
+      "assignmentsGenerated": 1,
+      "questionsGenerated": 3,
+      "totalAIGenerations": 5,
+      "pdfExports": 2
     }
+  }
+  ```
+
+### System Health Check
+- **Method:** `GET`
+- **Path:** `/api/health`
+- **Headers:** None (Public monitoring endpoint)
+- **Response:** `200 OK`
+  ```json
+  {
+    "status": "ok",
+    "timestamp": "2026-10-17T12:00:00.000Z",
+    "uptime": 128,
+    "database": "mongodb"
   }
   ```
 

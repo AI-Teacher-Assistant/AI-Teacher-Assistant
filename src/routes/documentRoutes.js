@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { DocumentRepository } = require('../models/Document');
+const { TeacherRepository } = require('../models/Teacher');
 const { authenticateApi } = require('../middleware/auth');
 const { requireActiveTrial } = require('../middleware/trial');
 const PDFService = require('../services/pdfService');
@@ -198,7 +199,15 @@ router.delete('/:id', authenticateApi, async (req, res) => {
  */
 router.get('/:id/pdf', authenticateApi, requireActiveTrial, async (req, res) => {
   try {
-    const doc = await DocumentRepository.findById(req.params.id);
+    const docId = (req.params.id || '').trim();
+    if (!docId) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid document ID is required.'
+      });
+    }
+
+    const doc = await DocumentRepository.findById(docId);
 
     if (!doc) {
       return res.status(404).json({
@@ -207,7 +216,7 @@ router.get('/:id/pdf', authenticateApi, requireActiveTrial, async (req, res) => 
       });
     }
 
-    // Ownership check
+    // Ownership check: logged-in teacher must match document owner
     const docTeacherId = doc.teacherId ? doc.teacherId.toString() : '';
     if (docTeacherId !== req.teacherId) {
       return res.status(403).json({
@@ -217,14 +226,21 @@ router.get('/:id/pdf', authenticateApi, requireActiveTrial, async (req, res) => 
     }
 
     const sanitizedTitle = (doc.title || 'document').replace(/[^a-zA-Z0-9_-]/g, '_');
-    const filename = `${sanitizedTitle}.pdf`;
+    const filename = `${sanitizedTitle || 'document'}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
     await PDFService.generateDocumentPDF(doc, req.teacher, res);
+
+    // Record PDF export usage safely in the background
+    try {
+      await TeacherRepository.recordUsage(req.teacherId, 'pdf');
+    } catch (usageErr) {
+      console.warn('Failed to record PDF usage:', usageErr.message);
+    }
   } catch (err) {
-    console.error('PDF export error:', err);
+    console.error('PDF export error:', err.message);
     if (!res.headersSent) {
       return res.status(500).json({
         success: false,

@@ -111,15 +111,27 @@ class DocumentRepository {
   }
 
   static async findByIdAndTeacher(id, teacherId) {
+    if (!id || !teacherId) return null;
+    const cleanId = typeof id === 'string' ? id.trim() : id;
     const tId = teacherId.toString();
     const { isConnected } = getDbStatus();
 
     if (isConnected) {
-      // Find document and ensure teacher ownership
-      return MongooseDocument.findOne({ _id: id, teacherId: tId });
+      if (typeof cleanId === 'string' && cleanId.startsWith('doc_')) {
+        const memDoc = memoryDocuments.get(cleanId);
+        return memDoc && memDoc.teacherId === tId ? memDoc : null;
+      }
+      if (typeof cleanId === 'string' && !mongoose.Types.ObjectId.isValid(cleanId)) {
+        return null;
+      }
+      try {
+        return await MongooseDocument.findOne({ _id: cleanId, teacherId: tId });
+      } catch (err) {
+        return null;
+      }
     }
 
-    const doc = memoryDocuments.get(id);
+    const doc = memoryDocuments.get(cleanId);
     if (!doc || doc.teacherId !== tId) {
       return null;
     }
@@ -127,11 +139,26 @@ class DocumentRepository {
   }
 
   static async findById(id) {
-    const { isConnected } = getDbStatus();
-    if (isConnected) {
-      return MongooseDocument.findById(id);
+    if (!id || typeof id !== 'string' || !id.trim()) {
+      return null;
     }
-    return memoryDocuments.get(id) || null;
+    const cleanId = id.trim();
+    const { isConnected } = getDbStatus();
+
+    if (isConnected) {
+      if (cleanId.startsWith('doc_')) {
+        return memoryDocuments.get(cleanId) || null;
+      }
+      if (!mongoose.Types.ObjectId.isValid(cleanId)) {
+        return null;
+      }
+      try {
+        return await MongooseDocument.findById(cleanId);
+      } catch (err) {
+        return null;
+      }
+    }
+    return memoryDocuments.get(cleanId) || null;
   }
 
   static async update(id, teacherId, { title, content, difficulty }) {

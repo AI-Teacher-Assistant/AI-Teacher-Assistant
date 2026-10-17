@@ -310,19 +310,136 @@ async function start() {
     assert.strictEqual(data.document.title, 'Binary Search Trees - Updated Edition');
   });
 
-  // Test 17: PDF Export
+  // Test 17: PDF Export - Logged-in teacher downloads own saved document
   await runTest('GET /api/documents/:id/pdf generates and streams valid binary PDF', async () => {
     const res = await fetch(`${BASE_URL}/api/documents/${document1Id}/pdf`, {
       headers: { Authorization: `Bearer ${teacher1Token}` }
     });
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.headers.get('content-type'), 'application/pdf');
+    assert.ok(res.headers.get('content-disposition').includes('attachment; filename='));
 
     const buffer = await res.arrayBuffer();
     assert.ok(buffer.byteLength > 500, 'PDF buffer must contain binary PDF data');
     const headerBytes = new Uint8Array(buffer.slice(0, 5));
     const headerStr = String.fromCharCode(...headerBytes);
     assert.strictEqual(headerStr, '%PDF-', 'Must start with standard PDF magic number %PDF-');
+  });
+
+  // Test 18: Cross-Teacher PDF Download Isolation (ID tampering returns 403 Forbidden)
+  await runTest('Teacher 2 CANNOT download Teacher 1 PDF by changing document ID (403 Forbidden)', async () => {
+    const res = await fetch(`${BASE_URL}/api/documents/${document1Id}/pdf`, {
+      headers: { Authorization: `Bearer ${teacher2Token}` }
+    });
+    assert.strictEqual(res.status, 403, 'Must return 403 Forbidden for cross-teacher PDF download');
+    const data = await res.json();
+    assert.strictEqual(data.success, false);
+    assert.strictEqual(data.message, 'Access denied. You do not have permission to export this document.');
+  });
+
+  // Test 19: PDF Export Rejects Missing Document ID (404 Not Found)
+  await runTest('GET /api/documents/:id/pdf rejects non-existent document ID with 404', async () => {
+    const res = await fetch(`${BASE_URL}/api/documents/non_existent_doc_id_999/pdf`, {
+      headers: { Authorization: `Bearer ${teacher1Token}` }
+    });
+    assert.strictEqual(res.status, 404);
+    const data = await res.json();
+    assert.strictEqual(data.success, false);
+    assert.strictEqual(data.message, 'Document not found.');
+  });
+
+  // Test 20: PDF Export Rejects Malformed Document ID Safely (404, no server crash or 500)
+  await runTest('GET /api/documents/:id/pdf rejects malformed ID safely with 404', async () => {
+    const res = await fetch(`${BASE_URL}/api/documents/!@#$%^&*()_invalid_id/pdf`, {
+      headers: { Authorization: `Bearer ${teacher1Token}` }
+    });
+    assert.strictEqual(res.status, 404);
+    const data = await res.json();
+    assert.strictEqual(data.success, false);
+    assert.strictEqual(data.message, 'Document not found.');
+  });
+
+  // Test 21: PDF Export Rejects Unauthenticated Requests (401 Unauthorized)
+  await runTest('GET /api/documents/:id/pdf rejects unauthenticated requests with 401', async () => {
+    const res = await fetch(`${BASE_URL}/api/documents/${document1Id}/pdf`);
+    assert.strictEqual(res.status, 401);
+    const data = await res.json();
+    assert.strictEqual(data.success, false);
+  });
+
+  // Test 22: PDF Generation with Long Multi-Page Content, Questions & Callouts
+  await runTest('PDFService generates multi-page document with questions and callouts', async () => {
+    let longContent = '# Advanced Comprehensive Biology: Cellular Respiration\n\n';
+    longContent += '## Module Overview & Core Mechanisms\n';
+    longContent += '> **Teacher Note:** Ensure students understand both glycolysis and oxidative phosphorylation.\n\n';
+    longContent += '### Section 1: Detailed Concepts\n';
+    for (let k = 1; k <= 15; k++) {
+      longContent += `Concept point ${k}: Cellular metabolic pathway step ${k} produces ATP through enzyme catalysis.\n`;
+    }
+    longContent += '\n---\n\n### Section 2: Question Bank\n';
+    for (let q = 1; q <= 6; q++) {
+      longContent += `#### Question ${q} [Multiple Choice - 2 Marks]\n`;
+      longContent += `What is the net gain of ATP in pathway step ${q}?\n`;
+      longContent += `- A) 2 ATP molecules\n- B) 4 ATP molecules [Correct]\n- C) 32 ATP molecules\n- D) Zero\n\n`;
+      longContent += `*Answer Key:* **B**\n*Explanation:* Step ${q} yields net 4 ATP through substrate-level phosphorylation.\n\n`;
+    }
+
+    const createDocRes = await fetch(`${BASE_URL}/api/documents`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${teacher1Token}`
+      },
+      body: JSON.stringify({
+        title: 'Cellular Respiration Comprehensive Exam',
+        subject: 'Biology',
+        topic: 'Cellular Respiration',
+        type: 'questions',
+        difficulty: 'hard',
+        content: longContent
+      })
+    });
+    const docData = await createDocRes.json();
+    assert.strictEqual(createDocRes.status, 201);
+    const longDocId = docData.document._id || docData.document.id;
+
+    // Export long document PDF
+    const pdfRes = await fetch(`${BASE_URL}/api/documents/${longDocId}/pdf`, {
+      headers: { Authorization: `Bearer ${teacher1Token}` }
+    });
+    assert.strictEqual(pdfRes.status, 200);
+    assert.strictEqual(pdfRes.headers.get('content-type'), 'application/pdf');
+    const pdfBuffer = await pdfRes.arrayBuffer();
+    assert.ok(pdfBuffer.byteLength > 2000, 'Multi-page PDF must be larger than 2KB');
+
+    // Clean up temporary long document
+    await fetch(`${BASE_URL}/api/documents/${longDocId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${teacher1Token}` }
+    });
+  });
+
+  // Test 23: Expired Trial Specifically Rejects PDF Export (403 Forbidden)
+  await runTest('Expired trial blocks PDF export route with 403 Forbidden', async () => {
+    // Expire trial
+    await TeacherRepository.updateTrialStatus(teacher1Id, {
+      isTrialActive: false,
+      trialEndDate: new Date(Date.now() - 1000 * 60 * 60 * 24)
+    });
+
+    const pdfRes = await fetch(`${BASE_URL}/api/documents/${document1Id}/pdf`, {
+      headers: { Authorization: `Bearer ${teacher1Token}` }
+    });
+    assert.strictEqual(pdfRes.status, 403);
+    const data = await pdfRes.json();
+    assert.strictEqual(data.success, false);
+    assert.ok(data.trial.isExpired);
+
+    // Restore trial
+    await TeacherRepository.updateTrialStatus(teacher1Id, {
+      isTrialActive: true,
+      trialEndDate: new Date(Date.now() + 60 * 1000 * 60 * 60 * 24)
+    });
   });
 
   // Test 18: Expired Trial Enforcement
@@ -375,7 +492,56 @@ async function start() {
     assert.strictEqual(checkData.count, 0);
   });
 
-  // Test 20: Logout
+  // Health Check Endpoint
+  await runTest('GET /api/health returns 200 with operational status and database mode', async () => {
+    const res = await fetch(`${BASE_URL}/api/health`);
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.strictEqual(data.status, 'ok');
+    assert.ok(data.timestamp);
+    assert.ok(typeof data.uptime === 'number');
+    assert.ok(data.database === 'in-memory-fallback' || data.database === 'mongodb');
+  });
+
+  // Subscription & Usage Metrics for Active Teacher
+  await runTest('GET /api/subscription/status accurately reports usage counters for Teacher 1', async () => {
+    const res = await fetch(`${BASE_URL}/api/subscription/status`, {
+      headers: { Authorization: `Bearer ${teacher1Token}` }
+    });
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.strictEqual(data.success, true);
+    assert.ok(data.trial.isActive);
+    assert.strictEqual(data.trial.daysRemaining, 60);
+
+    const usage = data.usage;
+    assert.ok(usage, 'Usage metrics object must be present');
+    assert.strictEqual(usage.notesGenerated, 1, 'Should reflect 1 note generated');
+    assert.strictEqual(usage.assignmentsGenerated, 1, 'Should reflect 1 assignment generated');
+    assert.strictEqual(usage.questionsGenerated, 3, 'Should reflect 3 question sets generated');
+    assert.strictEqual(usage.totalAIGenerations, 5, 'Should reflect 5 total AI generations');
+    assert.strictEqual(usage.pdfExports, 2, 'Should reflect 2 PDF exports');
+  });
+
+  // Cross-Teacher Usage Isolation
+  await runTest('Teacher 2 usage counters remain zero (strict teacher usage isolation)', async () => {
+    const res = await fetch(`${BASE_URL}/api/subscription/status`, {
+      headers: { Authorization: `Bearer ${teacher2Token}` }
+    });
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.strictEqual(data.success, true);
+
+    const usage = data.usage;
+    assert.ok(usage, 'Usage metrics object must be present');
+    assert.strictEqual(usage.notesGenerated, 0);
+    assert.strictEqual(usage.assignmentsGenerated, 0);
+    assert.strictEqual(usage.questionsGenerated, 0);
+    assert.strictEqual(usage.totalAIGenerations, 0);
+    assert.strictEqual(usage.pdfExports, 0);
+  });
+
+  // Logout
   await runTest('POST /api/auth/logout clears auth cookie', async () => {
     const res = await fetch(`${BASE_URL}/api/auth/logout`, { method: 'POST' });
     const data = await res.json();

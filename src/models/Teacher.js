@@ -35,6 +35,13 @@ const teacherSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  usage: {
+    notesGenerated: { type: Number, default: 0 },
+    assignmentsGenerated: { type: Number, default: 0 },
+    questionsGenerated: { type: Number, default: 0 },
+    totalAIGenerations: { type: Number, default: 0 },
+    pdfExports: { type: Number, default: 0 }
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -76,7 +83,14 @@ class TeacherRepository {
         password: hashedPassword,
         trialStartDate: now,
         trialEndDate: trialEnd,
-        isTrialActive: true
+        isTrialActive: true,
+        usage: {
+          notesGenerated: 0,
+          assignmentsGenerated: 0,
+          questionsGenerated: 0,
+          totalAIGenerations: 0,
+          pdfExports: 0
+        }
       });
       await teacher.save();
       return teacher;
@@ -100,6 +114,13 @@ class TeacherRepository {
       trialStartDate: now,
       trialEndDate: trialEnd,
       isTrialActive: true,
+      usage: {
+        notesGenerated: 0,
+        assignmentsGenerated: 0,
+        questionsGenerated: 0,
+        totalAIGenerations: 0,
+        pdfExports: 0
+      },
       createdAt: now,
       getDaysRemaining: function() {
         const diffTime = new Date(this.trialEndDate) - new Date();
@@ -128,13 +149,77 @@ class TeacherRepository {
   }
 
   static async findById(id) {
+    if (!id || typeof id !== 'string' || !id.trim()) {
+      return null;
+    }
+    const cleanId = id.trim();
     const { isConnected } = getDbStatus();
 
     if (isConnected) {
-      return MongooseTeacher.findById(id);
+      if (cleanId.startsWith('mem_')) {
+        return memoryTeachers.get(cleanId) || null;
+      }
+      if (!mongoose.Types.ObjectId.isValid(cleanId)) {
+        return null;
+      }
+      try {
+        return await MongooseTeacher.findById(cleanId);
+      } catch (err) {
+        return null;
+      }
     }
 
-    return memoryTeachers.get(id) || null;
+    return memoryTeachers.get(cleanId) || null;
+  }
+
+  static async recordUsage(id, usageType) {
+    if (!id || !usageType) return null;
+    const cleanId = typeof id === 'string' ? id.trim() : id;
+    const { isConnected } = getDbStatus();
+
+    const fieldMap = {
+      notes: 'usage.notesGenerated',
+      assignment: 'usage.assignmentsGenerated',
+      questions: 'usage.questionsGenerated',
+      pdf: 'usage.pdfExports'
+    };
+
+    const targetField = fieldMap[usageType];
+    if (!targetField) return null;
+
+    if (isConnected) {
+      if (typeof cleanId === 'string' && mongoose.Types.ObjectId.isValid(cleanId)) {
+        const incObject = { [targetField]: 1 };
+        if (usageType !== 'pdf') {
+          incObject['usage.totalAIGenerations'] = 1;
+        }
+        return await MongooseTeacher.findByIdAndUpdate(
+          cleanId,
+          { $inc: incObject },
+          { new: true }
+        );
+      }
+    }
+
+    const teacher = memoryTeachers.get(cleanId);
+    if (teacher) {
+      if (!teacher.usage) {
+        teacher.usage = {
+          notesGenerated: 0,
+          assignmentsGenerated: 0,
+          questionsGenerated: 0,
+          totalAIGenerations: 0,
+          pdfExports: 0
+        };
+      }
+      if (usageType === 'notes') teacher.usage.notesGenerated = (teacher.usage.notesGenerated || 0) + 1;
+      if (usageType === 'assignment') teacher.usage.assignmentsGenerated = (teacher.usage.assignmentsGenerated || 0) + 1;
+      if (usageType === 'questions') teacher.usage.questionsGenerated = (teacher.usage.questionsGenerated || 0) + 1;
+      if (usageType !== 'pdf') teacher.usage.totalAIGenerations = (teacher.usage.totalAIGenerations || 0) + 1;
+      if (usageType === 'pdf') teacher.usage.pdfExports = (teacher.usage.pdfExports || 0) + 1;
+      return teacher;
+    }
+    return null;
   }
 
   static async updateTrialStatus(id, { isTrialActive, trialEndDate }) {

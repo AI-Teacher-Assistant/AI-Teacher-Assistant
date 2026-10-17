@@ -10,15 +10,16 @@ AI Teacher Assistant is a web application designed to empower educators by strea
 ## 🚀 Key Features (MVP Delivered)
 
 1. **Teacher Registration & Authentication:** Secure registration and login with bcrypt password hashing, HTTP-only JWT cookies, and session management.
-2. **Two-Month Free Educator Trial:** Automatic 60-day trial activated on signup, with trial countdown badges and server-side trial enforcement.
+2. **Two-Month Free Educator Trial & Usage Tracking:** Automatic 60-day trial activated on signup, with trial countdown badges, server-side trial enforcement, and per-teacher usage tracking (`notesGenerated`, `assignmentsGenerated`, `questionsGenerated`, `totalAIGenerations`, `pdfExports`).
 3. **Protected Teacher Workspace & Dashboard:** Personalized dashboard with subject and topic selection and quick suggestions.
 4. **AI Lecture Notes Generator:** Creates structured lecture notes with learning objectives, core concepts, in-depth breakdowns, real-world examples, and discussion prompts.
 5. **AI Assignment Generator:** Generates coursework with conceptual foundations, problem-solving scenarios, point distributions, and teacher grading rubrics.
 6. **AI Tiered Question Bank Generator:** Produces tiered questions across **Easy**, **Medium**, and **Hard** difficulty levels with multiple-choice, short-answer, and comprehensive answer keys/explanations.
 7. **Live Preview & Interactive Editor:** Instant markdown-rendered preview alongside an editable raw text area for fine-tuning lesson materials before saving.
 8. **Document Persistence & Teacher Isolation:** Full CRUD support (`/api/documents`) with strict ownership checks preventing one teacher from accessing another teacher's materials.
-9. **PDF Export:** Generates high-quality, printable PDF worksheets complete with headers, metadata, student-friendly formatting, and page numbers.
+9. **Professional A4 PDF Export:** Generates clean, printable A4 PDF worksheets with metadata, dynamic height calculation, orphan heading prevention, answer key formatting, and zero trailing page overflow.
 10. **Resilient AI & Database Architecture:** Supports Google Gemini API while featuring a built-in intelligent educational fallback engine and resilient storage adapter so the demo runs seamlessly anywhere.
+11. **System Health & Deployment Monitoring:** Dedicated `/api/health` endpoint reporting service uptime, timestamp, and database adapter status for cloud deployment and uptime monitors.
 
 ---
 
@@ -144,23 +145,41 @@ Run the full end-to-end integration test suite:
 ```bash
 npm test
 ```
-The test suite validates:
+The test suite validates 31 automated assertions across the entire backend:
 - [x] Teacher registration and token generation.
-- [x] Duplicate email rejection.
+- [x] Duplicate email rejection (400 Bad Request).
 - [x] Teacher login and session verification.
-- [x] Profile retrieval and 2-month trial metadata.
-- [x] Unauthenticated request rejection (401).
-- [x] Empty subject/topic validation (400).
-- [x] AI Notes generation with learning objectives.
+- [x] Profile retrieval with accurate 2-month trial metadata and usage counters.
+- [x] Unauthenticated request rejection (401 Unauthorized).
+- [x] Empty subject/topic validation (400 Bad Request).
+- [x] AI Notes generation with learning objectives and discussion prompts.
 - [x] AI Assignment generation with grading rubrics.
 - [x] AI Question generation across **Easy**, **Medium**, and **Hard** tiers with answer keys.
 - [x] Document saving and retrieval.
-- [x] Strict cross-teacher ownership isolation (Teacher 2 cannot access Teacher 1 documents).
+- [x] Strict cross-teacher ownership isolation (Teacher 2 cannot read Teacher 1 documents).
 - [x] Document inline editing and updates (PATCH).
 - [x] Binary PDF export with correct headers (`%PDF-`).
-- [x] Server-side expired trial enforcement (403 Forbidden).
-- [x] Document deletion.
-- [x] Logout handling.
+- [x] Cross-teacher PDF download isolation (Teacher 2 cannot download Teacher 1 PDF by changing document ID).
+- [x] PDF export rejects missing document IDs safely (404 Not Found).
+- [x] PDF export rejects malformed document IDs safely without crashes or 500 errors (404 Not Found).
+- [x] PDF export rejects unauthenticated requests (401 Unauthorized).
+- [x] Multi-page PDF generation with question banks, callouts, and page numbers.
+- [x] Expired trial blocks PDF export (403 Forbidden).
+- [x] Server-side expired trial enforcement blocks AI generation (403 Forbidden).
+- [x] Document deletion and library updates.
+- [x] System health monitoring endpoint (`GET /api/health`).
+- [x] Real-time usage tracking (`notesGenerated`, `assignmentsGenerated`, `questionsGenerated`, `totalAIGenerations`, `pdfExports`).
+- [x] Strict cross-teacher usage isolation (Teacher 2 counters remain at zero).
+- [x] Secure logout and auth cookie clearance.
+
+---
+
+## 💳 Subscription, Usage & Billing Gateway Assessment
+
+- **60-Day Free Trial:** Every newly registered educator is automatically granted a 60-day full access trial (`planName: '2-Month Free Educator Trial'`).
+- **Server-Side Enforcement:** Trial expiration is actively guarded on all AI generation and PDF export routes via `requireActiveTrial` middleware. Expired accounts receive a structured `403 Forbidden` response prompting renewal.
+- **Granular Usage Tracking:** Real-time generation counters track usage across lecture notes, assignments, question banks, total AI calls, and PDF exports per educator account, exposed via `GET /api/teachers/me` and `GET /api/subscription/status`.
+- **Payment Gateway Status:** **Pending (Post-Hackathon Phase)** — In strict accordance with hackathon requirements, no unapproved subscription fees or mockup billing forms are active. Educators and hackathon judges enjoy full platform access during the trial evaluation period with zero payment friction.
 
 ---
 
@@ -170,34 +189,37 @@ Refer to [`API_CONTRACT.md`](./API_CONTRACT.md) for full request/response schema
 
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :--- |
+| `GET` | `/api/health` | Service uptime, timestamp & database status | No |
 | `POST` | `/api/auth/register` | Register new teacher with 60-day trial | No |
 | `POST` | `/api/auth/login` | Authenticate teacher & set cookie/token | No |
 | `POST` | `/api/auth/logout` | Clear session & cookie | No |
-| `GET` | `/api/teachers/me` | Current teacher profile | Yes |
-| `GET` | `/api/subscription/status`| Check 2-month trial status & days remaining | Yes |
-| `POST` | `/api/ai/notes` | Generate lecture notes | Yes + Active Trial |
-| `POST` | `/api/ai/assignments` | Generate assignment & rubrics | Yes + Active Trial |
-| `POST` | `/api/ai/questions` | Generate Easy, Medium, or Hard questions | Yes + Active Trial |
+| `GET` | `/api/teachers/me` | Current teacher profile with usage metrics | Yes |
+| `GET` | `/api/subscription/status`| Check 2-month trial status & usage metrics | Yes |
+| `POST` | `/api/ai/notes` | Generate lecture notes (increments usage) | Yes + Active Trial |
+| `POST` | `/api/ai/assignments` | Generate assignment & rubrics (increments usage) | Yes + Active Trial |
+| `POST` | `/api/ai/questions` | Generate Easy, Medium, or Hard questions (increments usage) | Yes + Active Trial |
 | `GET` | `/api/documents` | List teacher's documents | Yes |
 | `POST` | `/api/documents` | Save document to library | Yes |
 | `GET` | `/api/documents/:id` | Retrieve single document (owned) | Yes |
 | `PATCH`| `/api/documents/:id` | Update document title/content | Yes |
 | `DELETE`| `/api/documents/:id`| Delete document | Yes |
-| `GET` | `/api/documents/:id/pdf`| Export document as PDF | Yes + Active Trial |
+| `GET` | `/api/documents/:id/pdf`| Export document as PDF (increments usage) | Yes + Active Trial |
 
 ---
 
 ## 🏆 MVP Completion Status
 
-- [x] Teacher registration and login.
-- [x] Protected teacher dashboard.
+- [x] Teacher registration and login with bcrypt hashing and JWT.
+- [x] Protected teacher dashboard with reactive interface.
 - [x] Subject and topic input with instant suggestions.
-- [x] AI-generated notes.
-- [x] AI-generated assignments.
-- [x] AI-generated questions with Easy, Medium, and Hard difficulty.
+- [x] AI-generated notes with pedagogical structure.
+- [x] AI-generated assignments with point rubrics.
+- [x] AI-generated questions with Easy, Medium, and Hard difficulty tiers.
 - [x] Generated-content preview and live editing.
-- [x] Save and retrieve the teacher's generated documents.
-- [x] PDF download with educator metadata and formatting.
-- [x] Two-month free-trial status and server-side expiry checks.
-- [x] Cross-teacher data ownership isolation.
-- [x] Validation, clear error messages, and verified setup guide.
+- [x] Save, retrieve, and delete educator documents.
+- [x] Multi-page A4 PDF export with callouts, answer keys, page numbers, and zero trailing page overflow.
+- [x] Two-month free-trial status and strict server-side expiry checks.
+- [x] Granular per-teacher usage metrics tracking.
+- [x] Strict cross-teacher data and PDF download isolation.
+- [x] Comprehensive input validation and resilient in-memory fallback.
+- [x] 31/31 automated integration tests passing.

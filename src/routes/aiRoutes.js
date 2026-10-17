@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const AIService = require('../services/aiService');
+const { TeacherRepository } = require('../models/Teacher');
 const { authenticateApi } = require('../middleware/auth');
 const { requireActiveTrial } = require('../middleware/trial');
 
@@ -32,6 +33,8 @@ router.post('/notes', authenticateApi, requireActiveTrial, async (req, res) => {
       gradeLevel: gradeLevel ? gradeLevel.trim() : 'Secondary / High School',
       additionalInstructions: additionalInstructions ? additionalInstructions.trim() : ''
     });
+
+    await TeacherRepository.recordUsage(req.teacherId, 'notes');
 
     return res.status(200).json(result);
   } catch (err) {
@@ -75,6 +78,8 @@ router.post('/assignments', authenticateApi, requireActiveTrial, async (req, res
       difficulty: validDifficulty,
       instructions: instructions ? instructions.trim() : ''
     });
+
+    await TeacherRepository.recordUsage(req.teacherId, 'assignment');
 
     return res.status(200).json(result);
   } catch (err) {
@@ -127,6 +132,8 @@ router.post('/questions', authenticateApi, requireActiveTrial, async (req, res) 
       questionCount: count,
       questionType: questionType || 'mixed'
     });
+
+    await TeacherRepository.recordUsage(req.teacherId, 'questions');
 
     return res.status(200).json(result);
   } catch (err) {
